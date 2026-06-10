@@ -31,10 +31,13 @@ The assistant/output text must start with the 8 gold scores.
 ```bash
 git clone <this-repo-url>
 cd <this-repo>
+git lfs pull
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
+
+`kanana_wntl_20260407_002343/adapter_model.safetensors` is stored with Git LFS. If your clone only has a small pointer file there, install Git LFS and run `git lfs pull`.
 
 ## Run
 

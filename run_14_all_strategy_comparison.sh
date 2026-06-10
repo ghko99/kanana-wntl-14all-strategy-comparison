@@ -13,6 +13,7 @@ OUTPUT_ROOT="${OUTPUT_ROOT:-${SCRIPT_DIR}/strategy_comparison_results}"
 RUN_ID="${RUN_ID:-kanana_wntl_14_all_strategy_comparison_$(date +%Y%m%d_%H%M%S_KST)}"
 OUTPUT_DIR="${OUTPUT_ROOT}/${RUN_ID}"
 LOG_FILE="${OUTPUT_DIR}/run.log"
+ADAPTER_MODEL_FILE="${ADAPTER_DIR}/adapter_model.safetensors"
 
 DEVICE_ID="${DEVICE_ID:-0}"
 MAX_M="${MAX_M:-50}"
@@ -23,6 +24,17 @@ MAX_NEW_TOKENS="${MAX_NEW_TOKENS:-32}"
 MAX_SEQ_LENGTH="${MAX_SEQ_LENGTH:-3072}"
 SEED="${SEED:-42}"
 LIMIT="${LIMIT:-}"
+
+if [[ ! -s "${ADAPTER_MODEL_FILE}" ]]; then
+    echo "[ERROR] Missing adapter model: ${ADAPTER_MODEL_FILE}" >&2
+    exit 1
+fi
+
+if grep -q "version https://git-lfs.github.com/spec/v1" "${ADAPTER_MODEL_FILE}" 2>/dev/null; then
+    echo "[ERROR] ${ADAPTER_MODEL_FILE} is a Git LFS pointer, not the real adapter file." >&2
+    echo "Install Git LFS and run: git lfs pull" >&2
+    exit 1
+fi
 
 mkdir -p "${OUTPUT_DIR}"
 
