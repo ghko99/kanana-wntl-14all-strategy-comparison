@@ -16,12 +16,14 @@ from tqdm import tqdm
 from modules.inference_module import load_inference_model
 from modules.number_tokenizer import AutoNumberTokenizer
 from weighted_digit_inference import (
+    DEFAULT_BASE_MODEL_NAME,
     RUBRICS,
     DigitDistributionHelper,
     append_jsonl,
     build_prompt_and_label,
     clip_round_score,
     ensure_dir,
+    extract_grader_scores,
     now_kst,
     parse_ground_truth_scores,
     qwk_numpy,
@@ -130,8 +132,10 @@ def run_greedy(
     min_digit_mass_for_fallback: float,
     fallback_score: int,
     limit: Optional[int],
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> Tuple[np.ndarray, List[Optional[List[float]]], List[Optional[List[float]]], np.ndarray, np.ndarray, np.ndarray]:
     labels: List[List[int]] = []
+    grader_1_labels: List[Optional[List[float]]] = []
+    grader_2_labels: List[Optional[List[float]]] = []
     hard_preds: List[List[int]] = []
     soft_preds: List[List[int]] = []
     soft_raw_values: List[List[float]] = []
@@ -146,8 +150,19 @@ def run_greedy(
     for sample_idx, example in enumerate(tqdm(iterator, desc="Greedy / soft greedy inference")):
         prompt, gt_text, uses_chat_template = build_prompt_and_label(tokenizer, example)
         gt_scores = parse_ground_truth_scores(gt_text, expected_count=len(RUBRICS))
+        grader_1_scores, grader_2_scores = extract_grader_scores(example)
         labels.append(gt_scores)
-        jsonl_write(ground_truth_path, {"sample_idx": sample_idx, "ground_truth": gt_scores})
+        grader_1_labels.append(grader_1_scores)
+        grader_2_labels.append(grader_2_scores)
+        jsonl_write(
+            ground_truth_path,
+            {
+                "sample_idx": sample_idx,
+                "ground_truth": gt_scores,
+                "grader_1_scores": grader_1_scores,
+                "grader_2_scores": grader_2_scores,
+            },
+        )
 
         enc = tokenizer(
             prompt,
@@ -221,6 +236,8 @@ def run_greedy(
             {
                 "sample_idx": sample_idx,
                 "ground_truth": gt_scores,
+                "grader_1_scores": grader_1_scores,
+                "grader_2_scores": grader_2_scores,
                 "generated_text": generated_text,
                 "hard_greedy_pred": hard_scores,
                 "soft_greedy_raw": soft_raw,
@@ -233,6 +250,8 @@ def run_greedy(
 
     return (
         np.asarray(labels, dtype=np.int64),
+        grader_1_labels,
+        grader_2_labels,
         np.asarray(hard_preds, dtype=np.int64),
         np.asarray(soft_preds, dtype=np.int64),
         np.asarray(soft_raw_values, dtype=np.float32),
@@ -269,6 +288,7 @@ def run_self_consistency(
     for sample_idx, example in enumerate(tqdm(iterator, desc=f"Self-consistency sampling m={max_m}")):
         prompt, gt_text, uses_chat_template = build_prompt_and_label(tokenizer, example)
         gt_scores = parse_ground_truth_scores(gt_text, expected_count=len(RUBRICS))
+        grader_1_scores, grader_2_scores = extract_grader_scores(example)
 
         enc = tokenizer(
             prompt,
@@ -352,6 +372,8 @@ def run_self_consistency(
                         "sample_idx": sample_idx,
                         "sample_number": sample_number,
                         "ground_truth": gt_scores,
+                        "grader_1_scores": grader_1_scores,
+                        "grader_2_scores": grader_2_scores,
                         "generated_text": generated_text,
                         "hard_digits": hard_scores,
                         "soft_expected_raw": soft_raw,
@@ -506,6 +528,8 @@ def save_tables(
 def save_final_predictions(
     out_dir: str,
     labels: np.ndarray,
+    grader_1_scores: List[Optional[List[float]]],
+    grader_2_scores: List[Optional[List[float]]],
     hard_greedy: np.ndarray,
     soft_greedy: np.ndarray,
     soft_greedy_raw: np.ndarray,
@@ -523,6 +547,8 @@ def save_final_predictions(
             {
                 "sample_idx": idx,
                 "ground_truth": labels[idx].astype(int).tolist(),
+                "grader_1_scores": grader_1_scores[idx],
+                "grader_2_scores": grader_2_scores[idx],
                 "hard_greedy_pred": hard_greedy[idx].astype(int).tolist(),
                 "soft_greedy_raw": soft_greedy_raw[idx].astype(float).tolist(),
                 "soft_greedy_pred": soft_greedy[idx].astype(int).tolist(),
@@ -561,7 +587,7 @@ def plot_average_qwk(
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser("compare_14_all_inference_strategies")
     parser.add_argument("--adapter_dir", type=str, default="./kanana_wntl_20260407_002343")
-    parser.add_argument("--base_model_name", type=str, default="/home/khko/models/kanana")
+    parser.add_argument("--base_model_name", type=str, default=DEFAULT_BASE_MODEL_NAME)
     parser.add_argument("--test_path", type=str, default="./aes_dataset_mtl/test_14_all.jsonl")
     parser.add_argument("--output_root", type=str, default="./strategy_comparison_results")
     parser.add_argument("--output_dir", type=str, default=None)
@@ -621,7 +647,7 @@ def main() -> None:
         print("[DRY RUN] loaded successfully; no inference executed.")
         return
 
-    labels, hard_greedy, soft_greedy, soft_greedy_raw = run_greedy(
+    labels, grader_1_scores, grader_2_scores, hard_greedy, soft_greedy, soft_greedy_raw = run_greedy(
         model=model,
         tokenizer=tokenizer,
         dataset=dataset,
@@ -683,6 +709,8 @@ def main() -> None:
     save_final_predictions(
         out_dir=out_dir,
         labels=labels,
+        grader_1_scores=grader_1_scores,
+        grader_2_scores=grader_2_scores,
         hard_greedy=hard_greedy,
         soft_greedy=soft_greedy,
         soft_greedy_raw=soft_greedy_raw,

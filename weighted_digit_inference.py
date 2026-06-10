@@ -25,6 +25,27 @@ RUBRICS = [
     "expression_2",
 ]
 
+DEFAULT_BASE_MODEL_NAME = "/shared/home/aif/hf_models/kanana"
+
+
+def _first_available(example: Dict[str, Any], keys: List[str]) -> Any:
+    for key in keys:
+        if key in example and example[key] is not None:
+            return example[key]
+    return None
+
+
+def _score_list_or_none(value: Any) -> Optional[List[float]]:
+    if value is None:
+        return None
+    return [float(score) for score in value]
+
+
+def extract_grader_scores(example: Dict[str, Any]) -> Tuple[Optional[List[float]], Optional[List[float]]]:
+    grader_1 = _first_available(example, ["grader_1_scores", "grader1_scores"])
+    grader_2 = _first_available(example, ["grader_2_scores", "grader2_scores"])
+    return _score_list_or_none(grader_1), _score_list_or_none(grader_2)
+
 
 def now_kst() -> dt.datetime:
     return dt.datetime.now(dt.timezone(dt.timedelta(hours=9)))
@@ -295,6 +316,7 @@ def run_weighted_digit_inference(args: argparse.Namespace) -> str:
     for sample_idx, example in enumerate(tqdm(test_ds, desc="Weighted digit inference")):
         prompt, gt_text, uses_chat_template = build_prompt_and_label(tokenizer, example)
         gt_scores = parse_ground_truth_scores(gt_text, expected_count=8)
+        grader_1_scores, grader_2_scores = extract_grader_scores(example)
         labels.append(gt_scores)
 
         enc = tokenizer(
@@ -364,6 +386,8 @@ def run_weighted_digit_inference(args: argparse.Namespace) -> str:
         sample_summary = {
             "sample_idx": sample_idx,
             "ground_truth": gt_scores,
+            "grader_1_scores": grader_1_scores,
+            "grader_2_scores": grader_2_scores,
             "pred_expected": expected_scores[:8],
             "pred_argmax": argmax_scores[:8],
             "detected_digit_steps": sum(step["chosen_digit"] is not None for step in step_infos),
@@ -411,7 +435,7 @@ def build_parser() -> argparse.ArgumentParser:
         description="Single-pass weighted digit inference using all digit token mass with digit-only renormalization.",
     )
     parser.add_argument("--adapter_dir", type=str, default="./kanana_wntl_20260407_002343")
-    parser.add_argument("--base_model_name", type=str, default="/home/khko/models/kanana")
+    parser.add_argument("--base_model_name", type=str, default=DEFAULT_BASE_MODEL_NAME)
     parser.add_argument("--test_path", type=str, default="./aes_dataset_mtl/test_14_all.jsonl")
     parser.add_argument("--device_id", type=int, default=0)
 

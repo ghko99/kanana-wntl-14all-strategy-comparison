@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 PYTHON_SCRIPT="${SCRIPT_DIR}/compare_14_all_inference_strategies.py"
 ADAPTER_DIR="${ADAPTER_DIR:-${SCRIPT_DIR}/kanana_wntl_20260407_002343}"
-BASE_MODEL="${BASE_MODEL:-/home/khko/models/kanana}"
+BASE_MODEL="/shared/home/aif/hf_models/kanana"
 TEST_PATH="${TEST_PATH:-${SCRIPT_DIR}/aes_dataset_mtl/test_14_all.jsonl}"
 OUTPUT_ROOT="${OUTPUT_ROOT:-${SCRIPT_DIR}/strategy_comparison_results}"
 

@@ -11,13 +11,13 @@ The comparison excludes `overall` QWK. It reports QWK for the 8 rubrics and thei
 
 ## Required External Files
 
-This repo does not include model weights or the dataset.
+This repo includes `aes_dataset_mtl/test_14_all.jsonl`. It does not include model weights.
 
 Prepare these paths on the machine where you run the script:
 
 - `ADAPTER_DIR`: LoRA adapter directory, e.g. `kanana_wntl_20260407_002343`
-- `BASE_MODEL`: base model path or Hugging Face model id
-- `TEST_PATH`: `test_14_all.jsonl`
+- `BASE_MODEL`: fixed to `/shared/home/aif/hf_models/kanana` in `run_14_all_strategy_comparison.sh`
+- `TEST_PATH`: defaults to `./aes_dataset_mtl/test_14_all.jsonl`
 
 The dataset must contain either:
 
@@ -48,8 +48,6 @@ For a different environment, pass paths through environment variables:
 
 ```bash
 ADAPTER_DIR=/path/to/kanana_wntl_20260407_002343 \
-BASE_MODEL=/path/to/kanana \
-TEST_PATH=/path/to/test_14_all.jsonl \
 DEVICE_ID=0 \
 CHUNK_M=10 \
 MAX_M=50 \
@@ -74,10 +72,10 @@ Important files:
 
 - `run.log`: full stdout/stderr log
 - `run_config.json`: run configuration
-- `ground_truth.jsonl`: gold rubric scores
+- `ground_truth.jsonl`: gold rubric scores plus `grader_1_scores` and `grader_2_scores`
 - `greedy_predictions.jsonl`: hard/soft greedy predictions
-- `self_consistency_samples.jsonl`: all sampled SC generations
-- `final_strategy_predictions.jsonl`: final predictions for all four strategies
+- `self_consistency_samples.jsonl`: all sampled SC generations plus grader scores
+- `final_strategy_predictions.jsonl`: final predictions for all four strategies plus grader scores
 - `strategy_summary.csv`: per-strategy scores
 - `rubric_comparison.csv`: table-ready comparison
 - `rubric_comparison.md`: Markdown table
