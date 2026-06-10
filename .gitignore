@@ -6,6 +6,8 @@ strategy_comparison_results/
 *.log
 *.jsonl
 kanana_wntl_20260407_002343/
+!kanana_wntl_20260407_002343/
+!kanana_wntl_20260407_002343/**
 aes_dataset_mtl/
 !aes_dataset_mtl/
 !aes_dataset_mtl/test_14_all.jsonl
